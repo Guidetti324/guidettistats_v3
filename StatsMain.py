@@ -82,7 +82,7 @@ def get_dynamic_df_window(all_df_options, selected_df_val, window_size=5):
         return all_df_options[:min(len(all_df_options), window_size*2+1)]
 
 
-# --- Tab 1: t-distribution ---
+# --- Tab 1: t-Distribution ---
 def tab_t_distribution():
     st.header("t-Distribution Explorer")
     col1, col2 = st.columns([2, 1.5]) 
@@ -274,7 +274,7 @@ def tab_t_distribution():
             *{stat_symbol_summary}*({df_report_str_summary}) = {test_stat_t:.2f}, {apa_p_value(p_val_calc_summary)}. The null hypothesis was {'rejected' if decision_p_alpha_summary else 'not rejected'} at the α = {alpha_t_input:.2f} level.
         """)
 
-# --- Tab 2: z-distribution ---
+# --- Tab 2: z-Distribution ---
 def tab_z_distribution():
     st.header("z-Distribution (Standard Normal) Explorer")
     col1, col2 = st.columns([2, 1.5])
@@ -608,7 +608,7 @@ def tab_f_distribution():
             *F*({df1_f_selected}, {df2_f_selected}) = {test_stat_f:.2f}, {apa_p_value(p_val_calc_f_summary)}. The null hypothesis was {'rejected' if decision_p_alpha_f_summary else 'not rejected'} at α = {alpha_f_input:.2f}.
         """)
 
-# --- Tab 4: Chi-square distribution ---
+# --- Tab 4: Chi-square Distribution ---
 def tab_chi_square_distribution():
     st.header("Chi-square (χ²) Distribution Explorer")
     col1, col2 = st.columns([2, 1.5])
@@ -939,7 +939,7 @@ def tab_mann_whitney_u():
             A Mann-Whitney U test (using normal approximation) indicated that the outcome for group 1 (n<sub>1</sub>={n1_mw}) was {'' if decision_p_alpha_mw else 'not '}statistically significantly different from group 2 (n<sub>2</sub>={n2_mw}), *U* = {u_stat_mw:.1f}, *z* = {z_calc_mw:.2f}, {apa_p_value(p_val_calc_mw)}. The null hypothesis was {'rejected' if decision_p_alpha_mw else 'not rejected'} at α = {alpha_mw:.2f}.
         """)
 
-# --- Wilcoxon Signed-Rank T Test ---
+# --- Tab 6: Wilcoxon Signed-Rank T Test ---
 def tab_wilcoxon_t():
     st.header("Wilcoxon Signed-Rank T Test (Normal Approximation)")
     col1, col2 = st.columns([2, 1.5])
@@ -1113,7 +1113,7 @@ def tab_wilcoxon_t():
             A Wilcoxon signed-rank test (using normal approximation) indicated that the median difference was {'' if decision_p_alpha_w else 'not '}statistically significant, *T* = {t_stat_w_input:.1f}, *z* = {z_calc_w:.2f}, {apa_p_value(p_val_calc_w)}. The null hypothesis was {'rejected' if decision_p_alpha_w else 'not rejected'} at α = {alpha_w:.2f} (n={n_w}).
         """)
 
-# --- Binomial Test ---
+# --- Tab 7: Binomial Test ---
 def tab_binomial_test():
     st.header("Binomial Test Explorer")
     col1, col2 = st.columns([2, 1.5])
@@ -1413,7 +1413,7 @@ def tab_tukey_hsd():
         """)
 
 
-# --- Kruskal-Wallis H Test ---
+# --- Tab 9: Kruskal-Wallis H Test ---
 def tab_kruskal_wallis():
     st.header("Kruskal-Wallis H Test (Chi-square Approximation)")
     col1, col2 = st.columns([2, 1.5])
@@ -1549,6 +1549,7 @@ def tab_kruskal_wallis():
         """)
 
 
+# --- Tab 10: Friedman Test ---
 def tab_friedman_test():
     st.header("Friedman Test (Chi-square Approximation)")
     col1, col2 = st.columns([2, 1.5])
@@ -1623,7 +1624,7 @@ def tab_friedman_test():
             if highlight_col_name in df_to_style.columns:
                 for r_idx in df_to_style.index:
                     current_r_style = style.loc[r_idx, highlight_col_name]
-                    style.loc[r_idx, highlight_col_name] = (current_r_style if current_r_style else '') + ' background-color: lightgreen;'
+                    style.loc[r_idx, highlight_col_name] = (current_r_style if current_r_style else '') + 'background-color: lightgreen;'
                 if selected_df_str in df_to_style.index:
                     current_c_style = style.loc[selected_df_str, highlight_col_name]
                     style.loc[selected_df_str, highlight_col_name] = (current_c_style if current_c_style else '') + 'font-weight: bold; border: 2px solid red; background-color: yellow;'
@@ -1709,12 +1710,15 @@ def tab_critical_r():
         t_observed_r = float('nan')
         if abs(test_stat_r) < 1.0: # Ensure 1-r^2 is not zero or negative
             try:
-                t_observed_r = test_stat_r * math.sqrt(df_r / (1 - test_stat_r**2))
+                if (1 - test_stat_r**2) <= 1e-9: # Handles r close to 1 or -1 edge case for sqrt
+                    t_observed_r = float('inf') * np.sign(test_stat_r) if test_stat_r != 0 else 0.0
+                else:
+                    t_observed_r = test_stat_r * math.sqrt(df_r / (1 - test_stat_r**2))
             except ZeroDivisionError: 
                  t_observed_r = float('inf') * np.sign(test_stat_r) if test_stat_r != 0 else 0.0
-            except ValueError: # Catches math domain error if 1-r^2 is negative (should not happen with abs(r)<1)
+            except ValueError: 
                  t_observed_r = float('nan')
-        elif abs(test_stat_r) == 1.0:
+        elif abs(test_stat_r) >= 1.0: # Handles r = 1 or r = -1
             t_observed_r = float('inf') * np.sign(test_stat_r)
 
 
@@ -1728,16 +1732,15 @@ def tab_critical_r():
         crit_func_ppf_plot_r = lambda q_val: stats.t.ppf(q_val, df_r)
         crit_func_pdf_plot_r = lambda x_val: stats.t.pdf(x_val, df_r)
         
-        # Define plot limits carefully, especially if t_observed_r is inf
-        if np.isinf(t_observed_r):
-            plot_min_r_t = -5 if t_observed_r < 0 else crit_func_ppf_plot_r(0.00000001)
-            plot_max_r_t = 5 if t_observed_r > 0 else crit_func_ppf_plot_r(0.99999999)
-        else:
-            plot_min_r_t = min(crit_func_ppf_plot_r(0.00000001), t_observed_r - 3 if not np.isnan(t_observed_r) else -3, -4.0)
-            plot_max_r_t = max(crit_func_ppf_plot_r(0.99999999), t_observed_r + 3 if not np.isnan(t_observed_r) else 3, 4.0)
-            if not np.isnan(t_observed_r) and abs(t_observed_r) > 4 and abs(t_observed_r) > plot_max_r_t * 0.8 : 
-                plot_min_r_t = min(plot_min_r_t, t_observed_r -1)
-                plot_max_r_t = max(plot_max_r_t, t_observed_r +1)
+        plot_min_r_t = min(crit_func_ppf_plot_r(0.00000001), (t_observed_r - 3) if not (np.isnan(t_observed_r) or np.isinf(t_observed_r)) else -3, -4.0)
+        plot_max_r_t = max(crit_func_ppf_plot_r(0.99999999), (t_observed_r + 3) if not (np.isnan(t_observed_r) or np.isinf(t_observed_r)) else 3, 4.0)
+
+        if not (np.isnan(t_observed_r) or np.isinf(t_observed_r)) and abs(t_observed_r) > 4 and abs(t_observed_r) > plot_max_r_t * 0.8 : 
+            plot_min_r_t = min(plot_min_r_t, t_observed_r -1)
+            plot_max_r_t = max(plot_max_r_t, t_observed_r +1)
+        elif np.isinf(t_observed_r): 
+            plot_min_r_t = -7 if t_observed_r < 0 else crit_func_ppf_plot_r(0.0001) 
+            plot_max_r_t = 7 if t_observed_r > 0 else crit_func_ppf_plot_r(0.9999)
 
 
         x_r_t_plot = np.linspace(plot_min_r_t, plot_max_r_t, 500)
@@ -1771,7 +1774,7 @@ def tab_critical_r():
                 ax_r.fill_between(x_fill_lower, crit_func_pdf_plot_r(x_fill_lower), color='red', alpha=0.5, label=f'α = {alpha_for_plot_r:.8f}')
                 ax_r.axvline(crit_t_lower_r_plot, color='red', linestyle='--', lw=1)
         
-        if not np.isnan(t_observed_r):
+        if not np.isnan(t_observed_r) and not np.isinf(t_observed_r): # Only plot if finite
             ax_r.axvline(t_observed_r, color='green', linestyle='-', lw=2, label=f'Observed t (from r) = {t_observed_r:.3f}')
         
         ax_r.set_title(f't-Distribution for r (df={df_r})')
@@ -1780,7 +1783,7 @@ def tab_critical_r():
         ax_r.legend(); ax_r.grid(True); st.pyplot(fig_r)
 
         st.subheader("Critical r-Values Table (Two-tailed)")
-        all_df_r_options = list(range(1, 101)) + [120, 150, 200, 500, 1000] 
+        all_df_r_options = list(range(1, 101)) + [120, 150, 200, 300, 400, 500, 1000] 
         table_df_r_window = get_dynamic_df_window(all_df_r_options, df_r, window_size=5)
         table_alpha_r_cols = [0.10, 0.05, 0.02, 0.01, 0.001] 
 
@@ -1791,10 +1794,12 @@ def tab_critical_r():
             row_data = {'df (n-2)': str(df_iter_calc)}
             for alpha_col in table_alpha_r_cols:
                 t_crit_cell = stats.t.ppf(1 - alpha_col / 2, df_iter_calc) 
-                if t_crit_cell**2 + df_iter_calc == 0: 
-                    r_crit_cell = float('nan')
-                else:
-                    r_crit_cell = math.sqrt(t_crit_cell**2 / (t_crit_cell**2 + df_iter_calc))
+                r_crit_cell = float('nan')
+                if not np.isnan(t_crit_cell) and (t_crit_cell**2 + df_iter_calc) != 0:
+                    term_under_sqrt = t_crit_cell**2 / (t_crit_cell**2 + df_iter_calc)
+                    if term_under_sqrt >= 0:
+                         r_crit_cell = math.sqrt(term_under_sqrt)
+
                 row_data[f"α (2-tail) = {alpha_col:.3f}"] = format_value_for_display(r_crit_cell, decimals=4)
             r_table_rows.append(row_data)
         
@@ -1807,9 +1812,6 @@ def tab_critical_r():
             if selected_df_r_str in df_to_style.index: 
                 style.loc[selected_df_r_str, :] = 'background-color: lightblue;'
             
-            target_alpha_for_col_highlight_r = alpha_r_input
-            # For table display, we use the standard two-tailed alpha columns
-            # User's alpha (one or two-tailed) is used to find the closest *two-tailed* alpha column for highlighting
             effective_table_alpha = alpha_r_input if tail_r == "Two-tailed (ρ ≠ 0)" else alpha_r_input * 2
             
             closest_alpha_col_val_r = min(table_alpha_r_cols, key=lambda x: abs(x - effective_table_alpha))
@@ -1852,14 +1854,17 @@ def tab_critical_r():
 
         # Calculate precise critical r for summary
         t_crit_summary = float('nan')
-        if tail_r == "Two-tailed (ρ ≠ 0)":
-            t_crit_summary = stats.t.ppf(1 - alpha_r_input / 2, df_r) if df_r > 0 else float('nan')
-        elif tail_r == "One-tailed (positive, ρ > 0)" or tail_r == "One-tailed (negative, ρ < 0)":
-             t_crit_summary = stats.t.ppf(1 - alpha_r_input, df_r) if df_r > 0 else float('nan')
+        if df_r > 0:
+            if tail_r == "Two-tailed (ρ ≠ 0)":
+                t_crit_summary = stats.t.ppf(1 - alpha_r_input / 2, df_r)
+            elif tail_r == "One-tailed (positive, ρ > 0)" or tail_r == "One-tailed (negative, ρ < 0)":
+                 t_crit_summary = stats.t.ppf(1 - alpha_r_input, df_r) 
         
         r_crit_summary = float('nan')
         if not np.isnan(t_crit_summary) and df_r > 0 and (t_crit_summary**2 + df_r) != 0:
-            r_crit_summary = math.sqrt(t_crit_summary**2 / (t_crit_summary**2 + df_r))
+            term_under_sqrt_summary = t_crit_summary**2 / (t_crit_summary**2 + df_r)
+            if term_under_sqrt_summary >=0:
+                 r_crit_summary = math.sqrt(term_under_sqrt_summary)
         
         crit_r_display_summary = format_value_for_display(r_crit_summary, decimals=4)
         if tail_r == "Two-tailed (ρ ≠ 0)":
@@ -1898,18 +1903,26 @@ def tab_critical_r():
 # --- Main app ---
 def main():
     st.set_page_config(page_title="Statistical Table Explorer", layout="wide")
-    st.title("🧠 Oli's – Statistical Table Explorer - Mk. 2")
+    st.title("🧠 Oli's – Statistical Table Explorer - Mk. 3")
     st.markdown("""
     This application provides an interactive way to explore various statistical distributions and tests. 
     Select a tab to begin. On each tab, you can adjust parameters like alpha, degrees of freedom, 
     and input a calculated test statistic to see how it compares to critical values and to understand p-value calculations.
-    Built by Dr Oliver Guidetti.
+    **Note for Tukey HSD Tab**: This tab uses a simplified normal (z) distribution approximation. For accurate Tukey HSD results, ensure `statsmodels` is installed in your environment (e.g., add `statsmodels` to `requirements.txt`) and consult statistical software that properly implements the Studentized Range (q) distribution.
     """)
 
     tab_names = [
-        "t-Distribution", "z-Distribution", "F-Distribution", "Chi-square (χ²)",
-        "Mann-Whitney U", "Wilcoxon Signed-Rank T", "Binomial Test",
-        "Tukey HSD", "Kruskal-Wallis H", "Friedman Test", "Critical r Table"
+        "t-Distribution", # Tab 1
+        "z-Distribution", # Tab 2
+        "F-Distribution", # Tab 3
+        "Chi-square (χ²)", # Tab 4
+        "Mann-Whitney U", # Tab 5
+        "Wilcoxon Signed-Rank T", # Tab 6
+        "Binomial Test", # Tab 7
+        "Tukey HSD", # Tab 8
+        "Kruskal-Wallis H", # Tab 9
+        "Friedman Test", # Tab 10
+        "Critical r Table" # Tab 11
     ]
     
     tabs = st.tabs(tab_names)
