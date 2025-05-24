@@ -2016,7 +2016,7 @@ def tab_spearmans_rho():
             if selected_df_sr_str in df_to_style.index: 
                 style.loc[selected_df_sr_str, :] = 'background-color: lightblue;'
             
-            effective_table_alpha_sr = alpha_sr_input if tail_sr == "Two-tailed (ρ ≠ 0)" else alpha_sr_input * 2
+            effective_table_alpha_sr = alpha_sr if tail_sr == "Two-tailed (ρ ≠ 0)" else alpha_sr * 2
             
             closest_alpha_col_val_sr = min(table_alpha_sr_cols, key=lambda x: abs(x - effective_table_alpha_sr))
             highlight_col_name_sr = f"α (2-tail) = {closest_alpha_col_val_sr:.3f}"
